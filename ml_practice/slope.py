@@ -4,16 +4,16 @@ import matplotlib.pyplot as plt
 from matplotlib import style
 import random
 
-style.use('fivethirtyeight')
-
-# xs = np.array([1,2,3,4,5,6], dtype=np.float64)
-# ys = np.array([5,4,6,5,6,7], dtype=np.float64)
+style.use('ggplot')
 
 def create_dataset(hm, variance, step=2, correlation=False):
-    val = 1
+    val = 0
+    noise = 0
     ys = []
     for i in range(hm):
-        y = val + random.randrange(-variance, variance)
+        if variance:
+            noise = random.randrange(-variance, variance)
+        y = val + noise
         ys.append(y)
         if correlation and correlation == 'pos':
             val += step
@@ -37,19 +37,21 @@ def coefficient_of_determination(ys_orig, ys_line):
     squared_error_y_mean = squared_error(ys_orig, ys_mean_line)
     return 1 - (squared_error_regr / squared_error_y_mean)
 
-xs, ys = create_dataset(40, 30, 2, correlation='pos')
-m, b = best_fit_slope_and_intercept(xs, ys)
-regression_line = [(m*x)+b for x in xs]
-r_squared = coefficient_of_determination(ys, regression_line)
+model_slope = 0.5
+sims = {}
+for n_points in [3,4,5]:
+    slopes, r_squareds = [], []
+    for i in range(5000):
+        xs, ys = create_dataset(n_points, 4, model_slope, correlation='pos')
+        m, b = best_fit_slope_and_intercept(xs, ys)
+        regression_line = [(m*x)+b for x in xs]
+        r_squared = coefficient_of_determination(ys, regression_line)
+        slopes.append(m)
+        r_squareds.append(r_squared)
 
-print(m, b)
-print(r_squared)
+    sims[n_points] = [slopes, r_squareds]
 
-# predict a new data point further out
-predict_x = 48
-predict_y = (m*predict_x)+b
-
-plt.scatter(xs, ys)
-plt.scatter(predict_x, predict_y)
-plt.plot(xs, regression_line)
+for idx, plot in enumerate(sims):
+    plt.subplot(1,len(sims),idx+1)
+    plt.hist(np.array(sims[plot][0])-model_slope, bins=np.arange(-5, 5, 0.5))
 plt.show()
