@@ -33,8 +33,11 @@ fixation_rotate_rate = 2
 fixation_orientations = (0, 45)
 
 # this will appear just before C keypress and requires button 1 to be pressed move on
-insructions_to_subjects = '''Do the experiment right.
-Press 1 to continue'''
+instructions_to_subject = '''Keep your eyes on the red cross at the center of the screen.
+
+Press button 1 when the red cross rotates.
+
+Press 1 to continue.'''
 
 screen_size = 768 # in pix
 screen_centre = screen_size/2
@@ -77,18 +80,17 @@ keys = [x[:-1] for x in keys]
 # show dialog and wait for OK or Cancel
 dialog_info = dialog_info.show()
 
-#dialog_info = ['SUB01', 'Yes', 'No', 'No', '18', '42.667', '15', '51.333', '16', '20', '12', 'No']
-
 # combine the list of keys with the input from dialog_info into a dictionary
 setup = dict(zip(keys, dialog_info[:]))
 
 if setup['save_log'] == 'Yes':
     logfile = open(f'''{setup['sub_id']}_PA_{setup['run_polar']}_Ecc_{setup['run_ecc']}_Bars_{setup['run_bars']}_logfile.csv''', 'w')
-    logfile.write('Subject ID:, Run Polar:, Run Ecc:, Run Bars:, Polar no. of cycles:, Polar cycle duration:, Eccentricity no. of cycles:, Eccentricity cycle duration:, Bar no. of sweeps:, Bar sweep duration:\n''')
-    logfile.write(f'''{setup['sub_id']}, {setup['run_polar']}, {setup['run_ecc']}, {setup['run_bars']}, {setup['pa_cycles']}, {setup['pa_cycle_duration']}, {setup['ecc_cycles']}, {setup['ecc_cycle_duration']}, {setup['bar_sweeps']}, {setup['bar_sweep_duration']}\n''')
+    logfile.write('Subject ID:, Run Polar:, Run Ecc:, Run Bars:, Polar no. of cycles:, Polar cycle duration:, Eccentricity no. of cycles:, Eccentricity cycle duration:, Bar no. of sweeps:, Bar no. of reps:, Bar sweep duration:\n''')
+    logfile.write(f'''{setup['sub_id']}, {setup['run_polar']}, {setup['run_ecc']}, {setup['run_bars']}, {setup['pa_cycles']}, {setup['pa_cycle_duration']}, {setup['ecc_cycles']}, {setup['ecc_cycle_duration']}, {setup['bar_sweeps']}, {setup['bar_sweep_reps']}, {setup['bar_sweep_duration']}\n''')
     logfile.write(f'''Baseline Duration preceding and following stimualtion: {setup['baseline_duration']} secs\n''')
     logfile.write('Time, pa_cycle_count, time_through_pa_cycle, pa_angle, ecc_cycle_count, time_through_ecc_cycle, ecc_inner_rad, bar_sweep_count, time_through_bar_sweep, bar_drift_position, bar_orientation, fixation_orientation\n''')
 
+    logfile_debug = open(f"debug.csv", 'w')
 #%% =============================================================================
 # functions
 def screenCorrection(mywin,x):
@@ -140,7 +142,7 @@ win.winHandle.activate()
 welcome_message = visual.TextStim(win, pos=[0,+0.3], text='Preparing images...')
 C_keypress_message = visual.TextStim(win, pos=[0,+0.3], text='Waiting for Experimenter C Key Press...')
 trigger_message = visual.TextStim(win, pos=[0,+0.3], text='Waiting for Scanner Trigger...')
-insructions_to_subjects = visual.TextStim(win, pos=[0,+0.3], text=insructions_to_subjects)
+instructions_to_subject = visual.TextStim(win, pos=[0,+0.3], text=instructions_to_subject)
 
 # spiderweb background
 web_dimension = (screenCorrection(win,web_size[0]),web_size[1])
@@ -219,7 +221,7 @@ if setup['run_polar'] == 'Yes' or setup['run_ecc'] == 'Yes':
     checkerboard_noninv = Image.fromarray(checkerboard)
     checkerboard_inv = Image.fromarray(checkerboard_inv)
 
-else:
+else: # we're just doing bars
     # =============================================================================
     # make regular checkerboards
     check_size = 32
@@ -314,7 +316,7 @@ checkerboard_image = visual.ImageStim(win, image=checkerboard_noninv, units='nor
 #%% =============================================================================
 # start experiment
 
-insructions_to_subjects.draw()
+instructions_to_subject.draw()
 win.flip()
 while not '1' in event.getKeys():
     core.wait(0.1)
@@ -324,10 +326,11 @@ win.flip()
 while not 'c' in event.getKeys():
     core.wait(0.1)
 
-
 # =============================================================================
 # start waiting for trigger (coded as z)
-# button_thread.start()
+## line below is Glasgow only
+### button_thread.start()
+
 # trigger_message.draw()
 # win.flip()
 # while not 'z' in event.getKeys():
@@ -360,7 +363,7 @@ flicker_timer = clock.getTime()
 pa_cycle_count = 0
 ecc_cycle_count = 0
 bar_sweep_count = 0
-while True: # we'll break out of this loop once we've shown enough
+while True: # we'll just use a break to get out of this loop when needed
 
     if spiderweb_grid:
         draw_siderweb()
@@ -377,6 +380,7 @@ while True: # we'll break out of this loop once we've shown enough
         pa_start = clock.getTime()
         pa_mask = pa_mask_0
         pa_cycle_count += 1
+        logfile_debug.write(f"pa: {pa_cycle_count}\n")
 
     # set between -1=masked and 1=visible
     pa_mask[pa_mask==0] = -1
@@ -393,6 +397,7 @@ while True: # we'll break out of this loop once we've shown enough
         ecc_start = clock.getTime()
         ecc_mask = ecc_masks[:,:,0]
         ecc_cycle_count += 1
+        logfile_debug.write(f"ecc: {ecc_cycle_count}\n")
 
 # =============================================================================
 # prepare bar mask
@@ -408,6 +413,7 @@ while True: # we'll break out of this loop once we've shown enough
         bar_start = clock.getTime()
         bar_mask = bar_mask_0
         bar_sweep_count += 1
+        logfile_debug.write(f"bar: {bar_sweep_count}\n")
 
     if setup['run_bars'] == 'Yes':
 
@@ -472,12 +478,16 @@ while True: # we'll break out of this loop once we've shown enough
                              {bar_sweep_count}, {np.round(clock.getTime()-bar_start, 2)}, {np.round(bar_drift, 2)}, {bar_orientations[bar_sweep_count]}, \
                              {fixation_orientation}\n''')
 
-    # should we stop stimulating and move on to the last baseline?
-    if (setup['run_polar'] == 'Yes') and (pa_cycle_count == setup['pa_cycles']):
+    # should we stop stimulating and show the last baseline?
+    # if we chose a stimulation that has completed, then we're done
+    if (setup['run_polar']=='Yes') and (pa_cycle_count == setup['pa_cycles']):
+        print('end', pa_cycle_count)
         break
-    if (setup['run_ecc'] == 'Yes') and (ecc_cycle_count == setup['ecc_cycles']):
+    if (setup['run_ecc']=='Yes') and (ecc_cycle_count == setup['ecc_cycles']):
+        print('end', ecc_cycle_count)
         break
-    if (setup['run_bars'] == 'Yes') and (bar_sweep_count == setup['bar_sweeps']*setup['bar_sweep_reps']):
+    if (setup['run_bars']=='Yes') and (bar_sweep_count == setup['bar_sweeps']*setup['bar_sweep_reps']):
+        print('end', bar_sweep_count)
         break
 
 # =============================================================================
