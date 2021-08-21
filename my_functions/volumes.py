@@ -4,11 +4,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 import scipy.ndimage.filters as f
 
-def our_func(data, thresh=0.35):
+def our_func(data, average_bin_size=1, thresh=0.35):
     # return np.median(data)
 
     # return np.sum(data>thresh)/len(data)
 
+    # this requires tuning of thresh by looking at the ground truth curve...
     tmp = np.mean(data[data>thresh])
     np.nan_to_num(tmp, copy=False)
     return tmp
@@ -20,14 +21,16 @@ def our_func(data, thresh=0.35):
     # np.nan_to_num(tmp, copy=False)
     # return tmp
 
-    # IDEA: take the size of the current mask bin, RELATIVE TO THE AVERAGE BIN
-    # SIZE, into accout somehow... boost each mean(?) signal in bin by how much
-    # size of the bin reletive to average (i.e. boost thicker parts to counter
-    # extra 'dilution' from thicker parts of the mask
+    # # IDEA: take the size of the current mask bin, RELATIVE TO THE AVERAGE BIN
+    # # SIZE, into accout somehow... boost each mean(?) signal in bin by how much
+    # # size of the bin reletive to average (i.e. boost thicker parts to counter
+    # # extra 'dilution' from thicker parts of the mask:
+    # # weighted_mean = mean*(bin_size/average_bin_size)
+    # current_bin_size = len(data)
+    # weighted_mean = np.mean(data)*(current_bin_size/average_bin_size)
+    # return weighted_mean
 
-
-
-def label_do(data, labels, func=np.mean):
+def label_do(data, labels, func=[np.mean]):
     """
     Inputs:
         data:           numpy array
@@ -35,9 +38,10 @@ def label_do(data, labels, func=np.mean):
         labels:         numpy array of the same size as data, containing numpy
                         array of non-zero int label value for each voxel.
 
-        func:           function applied to each set of labelled data voxels,
-                        the result of which will be contained in a 1D numpy
-                        array. The function MUST return a single value!
+        func:           List containing the function to be applied to each set
+                        of labelled data voxels, along with ONE optional
+                        argument. The result of which will be contained in a 1D
+                        numpy array. The function MUST return a single value!
                         (default np.mean).
 
     Returns:
@@ -46,7 +50,10 @@ def label_do(data, labels, func=np.mean):
     """
     func_results = np.zeros((len(np.unique(labels))-1))
     for idx, label in enumerate(np.unique(labels[labels>0])):
-        func_results[idx] = func(data[labels==label])
+        if len(func)>1:
+            func_results[idx] = func[0](data[labels==label], func[1])
+        else:
+            func_results[idx] = func[0](data[labels==label])
     return func_results
 
 ppi = np.zeros((100,100,50))
@@ -83,11 +90,16 @@ masked_ppi2 = ppi * mask2
 mask1 *= tmp
 mask2 *= tmp
 
+_, bin_counts = np.unique(mask2[mask2>0], return_counts=True)
+average_bin_size = np.min(bin_counts)
+
 out1 = label_do(ppi, mask1)
 out1 = np.concatenate((np.ones(5)*-1, out1))
 out2 = label_do(ppi, mask2)
 out2 = np.concatenate((np.ones(5)*-1, out2))
-out3 = label_do(ppi, mask2, our_func)
+out3 = label_do(ppi, mask2, [our_func])
+# out3 = label_do(ppi, mask2, [our_func, average_bin_size])
+
 out3 = np.concatenate((np.ones(5)*-1, out3))
 
 masks = [mask1[:,:,0], mask2[:,:,0], mask2[:,:,0]]
@@ -127,4 +139,5 @@ plt.xlim(0,100)
 plt.ylim(0,2.5)
 
 plt.show()
+
 
