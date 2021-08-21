@@ -2,70 +2,129 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
+import scipy.ndimage.filters as f
 
-def mask_region(data, mask):
-    return data * mask
+def our_func(data, thresh=0.35):
+    # return np.median(data)
 
-test_data = np.zeros((3,3,3))
-test_data[0,0:2,0] += 1
-test_data[0,1,1] += 1
+    # return np.sum(data>thresh)/len(data)
 
-test_labels = np.zeros((3,3,3))
-test_labels[0,:,0] += 1
-test_labels[0,:,1] += 2
-test_labels[0,:,2] += 3
-test_labels
-test_data[test_labels<2]
+    tmp = np.mean(data[data>thresh])
+    np.nan_to_num(tmp, copy=False)
+    return tmp
 
-test_data
+    # sorted_data = np.sort(data)
+    # 1/len(data)
+    # data[data>thresh]
+    # tmp = np.mean(data[data>thresh])
+    # np.nan_to_num(tmp, copy=False)
+    # return tmp
 
-label_do(test_data, test_labels, func=np.std)
+    # IDEA: take the size of the current mask bin, RELATIVE TO THE AVERAGE BIN
+    # SIZE, into accout somehow... boost each mean(?) signal in bin by how much
+    # size of the bin reletive to average (i.e. boost thicker parts to counter
+    # extra 'dilution' from thicker parts of the mask
 
-def label_average(data, labels, func=np.mean):
+
+
+def label_do(data, labels, func=np.mean):
     """
     Inputs:
-        data: numpy array
-        labels: numpy array, containing non-zero label value for each voxel
-        func: function applied to each set of labelled data voxels contained in
-              a 1D numpy array. The function MUST return a single value!
-              (default np.mean)
-    Returns: 1D numpy array containing the value returned from the function
-             from each set of labelled voxels.
+        data:           numpy array
+
+        labels:         numpy array of the same size as data, containing numpy
+                        array of non-zero int label value for each voxel.
+
+        func:           function applied to each set of labelled data voxels,
+                        the result of which will be contained in a 1D numpy
+                        array. The function MUST return a single value!
+                        (default np.mean).
+
+    Returns:
+        func_results:   1D numpy array containing the value returned from the
+                        function from each set of labelled voxels.
     """
-    average = np.zeros((len(np.unique(labels))-1))
+    func_results = np.zeros((len(np.unique(labels))-1))
     for idx, label in enumerate(np.unique(labels[labels>0])):
-        average[idx] = func(data[labels==label])
-    return average
+        func_results[idx] = func(data[labels==label])
+    return func_results
 
+ppi = np.zeros((100,100,50))
+ppi[55:65,10:40,:] += 2
+ppi[57:68,30:55,:] += 2
+ppi[60:70,50:60,:] += 2
+ppi[63:73,70:90,:] += 1
+ppi = f.gaussian_filter(ppi, 3)
+ppi += np.random.rand(100,100,50)
 
-t1 = np.random.rand(50,100,50)
-t1[10:20,70:90,:] += 1
-t1[30:40,10:40,:] += 1
-t1[35:45,50:60,:] += 1
-t1[32:43,30:55,:] += 1
+tmp = np.zeros((100,100,50))
+for i in range(100):
+    tmp[:,i,:] += i+1
 
-mask1 = np.zeros((50,100,50))
-mask1[25:50, 5:90, :] += 1
-mask2 = np.zeros((50,100,50))
-mask2[5:20, 50:95, :] += 1
+mask1 = np.zeros((100,100,50))
+mask1[50:75, 5:90, :] += 1
+# mask1[50:60, 35:45, :] = 0
+mask1 = f.gaussian_filter(mask1, 3)
+mask1[mask1>0.5]=1
+mask1[mask1<=0.5]=0
 
-plt.subplot(3,1,1)
-plt.imshow(t1[:,:,0])
-plt.subplot(3,1,2)
-plt.imshow(mask1[:,:,0])
-plt.subplot(3,1,3)
-plt.imshow(mask2[:,:,0])
-plt.show()
+mask2 = np.zeros((100,100,50))
+mask2[50:75, 5:90, :] += 1
+mask2[35:95, 10:25, :] += 1
+mask2[5:95, 65:75, :] += 1
+# mask2[50:60, 35:45, :] = 0
+mask2 = f.gaussian_filter(mask2, 3)
+mask2[mask2>0.5]=1
+mask2[mask2<=0.5]=0
 
-thing = mask_region(t1, mask1)
+masked_ppi1 = ppi * mask1
+masked_ppi2 = ppi * mask2
 
-plt.subplot(4,1,1)
-plt.imshow(t1[:,:,0])
-plt.subplot(4,1,2)
-plt.imshow(mask1[:,:,0])
-plt.subplot(4,1,3)
-plt.imshow(mask2[:,:,0])
-plt.subplot(4,1,4)
-plt.imshow(thing[:,:,0])
+mask1 *= tmp
+mask2 *= tmp
+
+out1 = label_do(ppi, mask1)
+out1 = np.concatenate((np.ones(5)*-1, out1))
+out2 = label_do(ppi, mask2)
+out2 = np.concatenate((np.ones(5)*-1, out2))
+out3 = label_do(ppi, mask2, our_func)
+out3 = np.concatenate((np.ones(5)*-1, out3))
+
+masks = [mask1[:,:,0], mask2[:,:,0], mask2[:,:,0]]
+masked_ppis = [masked_ppi1[:,:,0], masked_ppi2[:,:,0], masked_ppi2[:,:,0]]
+titles = ['unbiased mask (mean)', 'biased mask (mean)', 'biased mask (custom)']
+for plot_i in range(3):
+    plt.subplot(4,3,plot_i+1)
+    plt.title(titles[plot_i])
+    plt.imshow(ppi[:,:,0], vmin=0, vmax=3, aspect='auto')
+    plt.axis('off')
+
+for i, plot_i in enumerate(range(4,7)):
+    plt.subplot(4,3,plot_i)
+    plt.imshow(masks[i], aspect='auto')
+    plt.axis('off')
+
+for i, plot_i in enumerate(range(7,10)):
+    plt.subplot(4,3,plot_i)
+    plt.imshow(masked_ppis[i], vmin=0, vmax=3, aspect='auto')
+    plt.axis('off')
+
+plt.subplot(4,3,10)
+plt.plot(out1, 'r')
+plt.xlim(0,100)
+plt.ylim(0,2.5)
+
+plt.subplot(4,3,11)
+plt.plot(out1, '--r')
+plt.plot(out2, 'k')
+plt.xlim(0,100)
+plt.ylim(0,2.5)
+
+plt.subplot(4,3,12)
+plt.plot(out1, '--r')
+plt.plot(out3, 'k')
+plt.xlim(0,100)
+plt.ylim(0,2.5)
+
 plt.show()
 
