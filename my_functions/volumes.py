@@ -5,6 +5,12 @@ import matplotlib.pyplot as plt
 import scipy.ndimage.filters as f
 
 def our_func(data, average_bin_size=1, thresh=0.35):
+    """
+    Function to be applied to data. MUST return a single value!
+
+    Inputs:
+        data:   1D numpy array
+    """
     # return np.median(data)
 
     # return np.sum(data>thresh)/len(data)
@@ -32,20 +38,22 @@ def our_func(data, average_bin_size=1, thresh=0.35):
 
 def label_do(data, labels, func=np.mean, *args, **kwargs):
     """
-    Inputs:
-        data:           numpy array
+    Apply any function (default np.mean) to each set of labelled data voxels
+    and return the results as a 1D numpy array.
 
-        labels:         numpy array of the same size as data, containing numpy
+    Inputs:
+        data:           Numpy array
+
+        labels:         Numpy array of the same size as data, containing numpy
                         array of non-zero int label value for each voxel.
 
-        func:           function to be applied to each set of labelled data
-                        voxels, The result of which will be contained in a 1D
-                        numpy array. The function MUST return a single value!
-                        (default np.mean).
+        func:           Function to be applied to each set of voxels labelled
+                        in data. The function MUST return a single value! (the
+                        default fuction is np.mean).
 
-        *args:          any non-named arguments to pass to func
+        *args:          Any non-named arguments to pass to func.
 
-        **kwargs:       any named arguments to pass to func
+        **kwargs:       Any named arguments to pass to func.
 
     Returns:
         func_results:   1D numpy array containing the value returned from the
