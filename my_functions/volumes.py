@@ -30,7 +30,7 @@ def our_func(data, average_bin_size=1, thresh=0.35):
     # weighted_mean = np.mean(data)*(current_bin_size/average_bin_size)
     # return weighted_mean
 
-def label_do(data, labels, func=[np.mean]):
+def label_do(data, labels, func=np.mean, *args, **kwargs):
     """
     Inputs:
         data:           numpy array
@@ -38,11 +38,14 @@ def label_do(data, labels, func=[np.mean]):
         labels:         numpy array of the same size as data, containing numpy
                         array of non-zero int label value for each voxel.
 
-        func:           List containing the function to be applied to each set
-                        of labelled data voxels, along with ONE optional
-                        argument. The result of which will be contained in a 1D
+        func:           function to be applied to each set of labelled data
+                        voxels, The result of which will be contained in a 1D
                         numpy array. The function MUST return a single value!
                         (default np.mean).
+
+        *args:          any non-named arguments to pass to func
+
+        **kwargs:       any named arguments to pass to func
 
     Returns:
         func_results:   1D numpy array containing the value returned from the
@@ -50,10 +53,7 @@ def label_do(data, labels, func=[np.mean]):
     """
     func_results = np.zeros((len(np.unique(labels))-1))
     for idx, label in enumerate(np.unique(labels[labels>0])):
-        if len(func)>1:
-            func_results[idx] = func[0](data[labels==label], func[1])
-        else:
-            func_results[idx] = func[0](data[labels==label])
+        func_results[idx] = func(data[labels==label], *args, **kwargs)
     return func_results
 
 ppi = np.zeros((100,100,50))
@@ -97,8 +97,8 @@ out1 = label_do(ppi, mask1)
 out1 = np.concatenate((np.ones(5)*-1, out1))
 out2 = label_do(ppi, mask2)
 out2 = np.concatenate((np.ones(5)*-1, out2))
-out3 = label_do(ppi, mask2, [our_func])
-# out3 = label_do(ppi, mask2, [our_func, average_bin_size])
+out3 = label_do(ppi, mask2, our_func)
+# out3 = label_do(ppi, mask2, our_func, average_bin_size)
 
 out3 = np.concatenate((np.ones(5)*-1, out3))
 
